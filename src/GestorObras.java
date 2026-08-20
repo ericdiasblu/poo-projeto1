@@ -38,10 +38,29 @@ public class GestorObras {
      * BUG: aceita qualquer String — sem validacao de transicoes permitidas.
      * Ex: e possivel setar "CONCLUIDA" direto sem passar por "EM_ANDAMENTO".
      */
+    private boolean transicaoStatusPermitida(String statusAtual, String novoStatus) {
+        if (statusAtual == null) {
+            return "PLANEJADA".equals(novoStatus) || "CANCELADA".equals(novoStatus);
+        }
+
+        switch (statusAtual) {
+            case "PLANEJADA":
+                return "EM_ANDAMENTO".equals(novoStatus) || "CANCELADA".equals(novoStatus);
+            case "EM_ANDAMENTO":
+                return "CONCLUIDA".equals(novoStatus) || "CANCELADA".equals(novoStatus);
+            default:
+                return false;
+        }
+    }
+
     public void atualizarStatus(int obraId, String novoStatus) {
         Obra obra = buscarObra(obraId);
         if (obra == null) {
             System.out.println("Obra nao encontrada.");
+            return;
+        }
+        if (novoStatus == null || !transicaoStatusPermitida(obra.getStatus(), novoStatus)) {
+            System.out.println("Transicao de status invalida para a obra " + obra.getNome() + ": " + novoStatus);
             return;
         }
         obra.setStatus(novoStatus);
@@ -70,6 +89,10 @@ public class GestorObras {
             System.out.println("Obra ou material nao encontrado.");
             return;
         }
+        if (obra.getMateriaisIds().contains(materialId)) {
+            System.out.println("Material " + material.getDescricao() + " ja esta associado a obra " + obra.getNome());
+            return;
+        }
         obra.getMateriaisIds().add(materialId);
         System.out.println("Material " + material.getDescricao() + " adicionado a " + obra.getNome());
     }
@@ -90,6 +113,11 @@ public class GestorObras {
             System.out.println("Obra ou funcionario nao encontrado.");
             return;
         }
+        if (obra.getFuncionariosAlocados().contains(func)) {
+            System.out.println("Funcionario " + func.getNome() + " ja esta alocado em " + obra.getNome());
+            return;
+        }
+        obra.getFuncionariosAlocados().add(func);
         System.out.println("Funcionario " + func.getNome() + " alocado em " + obra.getNome());
     }
 
@@ -104,9 +132,10 @@ public class GestorObras {
             System.out.println("Obra nao encontrada.");
             return 0;
         }
+        int materiaisLiberados = obra.getMateriaisIds().size();
         obra.setStatus("CANCELADA");
         System.out.println("Obra cancelada: " + obra.getNome());
-        return 1; // BUG: deveria retornar obra.getMateriaisIds().size()
+        return materiaisLiberados;
     }
 
     public double calcularCustoMateriais(int obraId) {

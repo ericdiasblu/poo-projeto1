@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 public class Obra {
@@ -9,6 +10,12 @@ public class Obra {
     private String responsavel;
     private String status;
     private List<Integer> materiaisIds;
+    private List<Funcionario> funcionariosAlocados;
+
+    public Obra() {
+        this.materiaisIds = new ArrayList<>();
+        this.funcionariosAlocados = new ArrayList<>();
+    }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -30,4 +37,9 @@ public class Obra {
 
     public List<Integer> getMateriaisIds() { return materiaisIds; }
     public void setMateriaisIds(List<Integer> materiaisIds) { this.materiaisIds = materiaisIds; }
+
+    public List<Funcionario> getFuncionariosAlocados() { return funcionariosAlocados; }
+    public void setFuncionariosAlocados(List<Funcionario> funcionariosAlocados) {
+        this.funcionariosAlocados = funcionariosAlocados;
+    }
 }
