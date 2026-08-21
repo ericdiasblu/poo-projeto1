@@ -19,21 +19,16 @@ public class Main {
         gestor.alocarFuncionario(1, 1);
         gestor.alocarFuncionario(1, 2);
 
-        // BUG demonstrado: aceita qualquer String como status,
-        // sem validar se a transicao e permitida.
-        gestor.atualizarStatus(1, "QUALQUER_COISA_AQUI"); // nao deveria ser aceito
-        gestor.atualizarStatus(1, "EM_ANDAMENTO");
+        gestor.atualizarStatus(1, StatusObra.CONCLUIDA);
+        gestor.atualizarStatus(1, StatusObra.EM_ANDAMENTO);
 
         System.out.printf("\nCusto de materiais (Obra 1): R$ %,.2f%n",
                 gestor.calcularCustoMateriais(1));
 
-        // BUG demonstrado: cancelarObra retorna 1 sempre,
-        // mesmo que a obra tenha 3 materiais associados.
         gestor.adicionarMaterialNaObra(2, 1);
         gestor.adicionarMaterialNaObra(2, 2);
         int liberados = gestor.cancelarObra(2);
-        System.out.println("Materiais liberados: " + liberados
-                + " (esperado: 2, mas retornou incorretamente 1)");
+        System.out.println("Materiais liberados: " + liberados);
 
         gestor.gerarRelatorio();
         gestor.salvarEmArquivo("obras_dados.txt");

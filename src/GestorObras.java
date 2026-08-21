@@ -1,193 +1,78 @@
-import java.util.ArrayList;
-import java.util.List;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Gerenciador central de obras e empreendimentos.
- * Responsável por: cadastro, atualização de status, alocação de funcionários,
- * controle de materiais, geração de relatórios e persistência.
- */
 public class GestorObras {
 
-    private List<Obra> obras;
-    private List<Funcionario> funcionarios;
-    private List<Material> materiais;
+    private final List<Obra> obras;
+    private final List<Funcionario> funcionarios;
+    private final List<Material> materiais;
+    private final ObraService obraService;
+    private final MaterialService materialService;
+    private final FuncionarioService funcionarioService;
+    private final RelatorioService relatorioService;
 
     public GestorObras() {
         this.obras = new ArrayList<>();
         this.funcionarios = new ArrayList<>();
         this.materiais = new ArrayList<>();
+        this.materialService = new MaterialService(this.materiais);
+        this.obraService = new ObraService(this.obras, this.materialService);
+        this.funcionarioService = new FuncionarioService(this.funcionarios, this.obras);
+        this.relatorioService = new RelatorioService(this.obras);
     }
 
     public void cadastrarObra(String nome, String endereco, double orcamento, String responsavel) {
-        Obra o = new Obra();
-        o.setId(obras.size() + 1);
-        o.setNome(nome);
-        o.setEndereco(endereco);
-        o.setOrcamento(orcamento);
-        o.setResponsavel(responsavel);
-        o.setStatus("PLANEJADA");
-        o.setMateriaisIds(new ArrayList<>());
-        obras.add(o);
-        System.out.println("Obra cadastrada: " + nome);
+        obraService.cadastrarObra(nome, endereco, orcamento, responsavel);
     }
 
-    /**
-     * Atualiza o status de uma obra.
-     * BUG: aceita qualquer String — sem validacao de transicoes permitidas.
-     * Ex: e possivel setar "CONCLUIDA" direto sem passar por "EM_ANDAMENTO".
-     */
-    private boolean transicaoStatusPermitida(String statusAtual, String novoStatus) {
-        if (statusAtual == null) {
-            return "PLANEJADA".equals(novoStatus) || "CANCELADA".equals(novoStatus);
-        }
-
-        switch (statusAtual) {
-            case "PLANEJADA":
-                return "EM_ANDAMENTO".equals(novoStatus) || "CANCELADA".equals(novoStatus);
-            case "EM_ANDAMENTO":
-                return "CONCLUIDA".equals(novoStatus) || "CANCELADA".equals(novoStatus);
-            default:
-                return false;
-        }
-    }
-
-    public void atualizarStatus(int obraId, String novoStatus) {
-        Obra obra = buscarObra(obraId);
-        if (obra == null) {
-            System.out.println("Obra nao encontrada.");
-            return;
-        }
-        if (novoStatus == null || !transicaoStatusPermitida(obra.getStatus(), novoStatus)) {
-            System.out.println("Transicao de status invalida para a obra " + obra.getNome() + ": " + novoStatus);
-            return;
-        }
-        obra.setStatus(novoStatus);
-        System.out.println("Status atualizado: " + obra.getNome() + " -> " + novoStatus);
+    public void atualizarStatus(int obraId, StatusObra novoStatus) {
+        obraService.atualizarStatus(obraId, novoStatus);
     }
 
     public void cadastrarMaterial(String descricao, String unidade, double precoUnitario) {
-        Material m = new Material();
-        m.setId(materiais.size() + 1);
-        m.setDescricao(descricao);
-        m.setUnidade(unidade);
-        m.setPrecoUnitario(precoUnitario);
-        materiais.add(m);
+        materialService.cadastrarMaterial(descricao, unidade, precoUnitario);
     }
 
-    /**
-     * Associa um material a uma obra pelo ID.
-     * BUG: armazena apenas o ID inteiro — para exibir detalhes do material
-     *      e necessario fazer nova busca; dados ficam desacoplados e sujeitos
-     *      a inconsistencia se um material for removido.
-     */
     public void adicionarMaterialNaObra(int obraId, int materialId) {
-        Obra obra = buscarObra(obraId);
-        Material material = buscarMaterial(materialId);
-        if (obra == null || material == null) {
-            System.out.println("Obra ou material nao encontrado.");
-            return;
-        }
-        if (obra.getMateriaisIds().contains(materialId)) {
-            System.out.println("Material " + material.getDescricao() + " ja esta associado a obra " + obra.getNome());
-            return;
-        }
-        obra.getMateriaisIds().add(materialId);
-        System.out.println("Material " + material.getDescricao() + " adicionado a " + obra.getNome());
+        obraService.adicionarMaterialNaObra(obraId, materialId);
     }
 
     public void cadastrarFuncionario(String nome, String cargo, double salario) {
-        Funcionario f = new Funcionario();
-        f.setId(funcionarios.size() + 1);
-        f.setNome(nome);
-        f.setCargo(cargo);
-        f.setSalario(salario);
-        funcionarios.add(f);
+        funcionarioService.cadastrarFuncionario(nome, cargo, salario);
     }
 
     public void alocarFuncionario(int obraId, int funcionarioId) {
-        Obra obra = buscarObra(obraId);
-        Funcionario func = buscarFuncionario(funcionarioId);
-        if (obra == null || func == null) {
-            System.out.println("Obra ou funcionario nao encontrado.");
-            return;
-        }
-        if (obra.getFuncionariosAlocados().contains(func)) {
-            System.out.println("Funcionario " + func.getNome() + " ja esta alocado em " + obra.getNome());
-            return;
-        }
-        obra.getFuncionariosAlocados().add(func);
-        System.out.println("Funcionario " + func.getNome() + " alocado em " + obra.getNome());
+        funcionarioService.alocarFuncionario(obraId, funcionarioId);
     }
 
-    /**
-     * Cancela uma obra e retorna o numero de materiais liberados.
-     * BUG: sempre retorna 1 independente de quantos materiais a obra possui.
-     *      O status e setado corretamente, mas o retorno e incorreto.
-     */
     public int cancelarObra(int obraId) {
-        Obra obra = buscarObra(obraId);
-        if (obra == null) {
-            System.out.println("Obra nao encontrada.");
-            return 0;
-        }
-        int materiaisLiberados = obra.getMateriaisIds().size();
-        obra.setStatus("CANCELADA");
-        System.out.println("Obra cancelada: " + obra.getNome());
-        return materiaisLiberados;
+        return obraService.cancelarObra(obraId);
     }
 
     public double calcularCustoMateriais(int obraId) {
-        Obra obra = buscarObra(obraId);
-        if (obra == null) return 0;
-        double total = 0;
-        for (int matId : obra.getMateriaisIds()) {
-            Material m = buscarMaterial(matId);
-            if (m != null) total += m.getPrecoUnitario();
-        }
-        return total;
+        return obraService.calcularCustoMateriais(obraId);
     }
 
     public void gerarRelatorio() {
-        System.out.println("\n=== Relatorio de Obras ===");
-        for (Obra o : obras) {
-            System.out.printf("%-30s | Status: %-15s | Orcamento: R$ %,.2f | Materiais: %d%n",
-                    o.getNome(), o.getStatus(), o.getOrcamento(), o.getMateriaisIds().size());
-        }
+        relatorioService.gerarRelatorio();
     }
 
     public void salvarEmArquivo(String caminho) {
-        try (FileWriter fw = new FileWriter(caminho)) {
-            fw.write("=== Obras ===\n");
-            for (Obra o : obras) {
-                fw.write(o.getNome() + " | " + o.getStatus() + " | R$" + o.getOrcamento() + "\n");
-            }
-            System.out.println("Relatorio salvo em: " + caminho);
-        } catch (IOException e) {
-            System.out.println("Erro ao salvar: " + e.getMessage());
-        }
+        relatorioService.salvarEmArquivo(caminho);
     }
 
     public Obra buscarObra(int id) {
-        for (Obra o : obras) {
-            if (o.getId() == id) return o;
-        }
-        return null;
+        return obraService.buscarObra(id);
     }
 
     public Material buscarMaterial(int id) {
-        for (Material m : materiais) {
-            if (m.getId() == id) return m;
-        }
-        return null;
+        return materialService.buscarMaterial(id);
     }
 
     public Funcionario buscarFuncionario(int id) {
-        for (Funcionario f : funcionarios) {
-            if (f.getId() == id) return f;
-        }
-        return null;
+        return funcionarioService.buscarFuncionario(id);
     }
 
     public List<Obra> getObras() { return obras; }
